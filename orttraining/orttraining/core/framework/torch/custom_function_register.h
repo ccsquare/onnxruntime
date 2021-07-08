@@ -23,7 +23,7 @@ class OrtTorchFunctionPool final {
   // AutogradFunction includes ForwardCore and BackwardCore.
   // ForwardCore is the apply() function pointer.
   // BackwardCore is the backward() function pointer.
-  // RegisterTorchAutogradFunction owns the input "obj" and will release its ownership only in its destructor. 
+  // RegisterTorchAutogradFunction owns the input "obj" and will release its ownership only in its destructor.
   void RegisterTorchAutogradFunction(const std::string& key, PyObject* obj);
   // Return a borrowed reference to the stored Python function. Thus,
   //  1. The returned value doesn't own its Python function.
@@ -63,8 +63,8 @@ class OrtTorchFunctionPool final {
   //   A static OrtTorchFunctionPool instance will be destructed after
   //   Python modules/functions are released. Once we own func pointers
   //   by increasing ref count for the functions, we need decrease the
-  //   ref count in ~OrtTorchFunctionPool, but at that time some properties
-  //   of the python function object, for example co_consts
+  //   ref count in ~OrtTorchFunctionPool, but at that ime some contained
+  //   properties for example co_consts
   //   (tuple type, https://github.com/python/cpython/blob/3.7/Objects/funcobject.c#L38)
   //   already released, there will be a segment fault.
 

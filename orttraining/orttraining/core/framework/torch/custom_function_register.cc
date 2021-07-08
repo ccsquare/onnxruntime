@@ -109,7 +109,7 @@ static void RegisterEntry(
   // Own the Python object.
   Py_INCREF(obj);
   PythonObjectPtr ptr(obj, PythonObjectDeleter);
-  
+
   // If an obj has been registered, this old ownership is automatically released
   // after this move-assignment. Then, the "storage" owns the new object.
   storage = std::move(ptr);

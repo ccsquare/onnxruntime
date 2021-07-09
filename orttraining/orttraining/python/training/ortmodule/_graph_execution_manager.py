@@ -12,6 +12,7 @@ from onnxruntime.capi import _pybind_state as C
 from onnxruntime.tools.symbolic_shape_infer import SymbolicShapeInference
 from abc import ABC, abstractmethod
 import copy
+from enum import IntFlag
 import io
 import inspect
 import onnx
@@ -23,7 +24,20 @@ from enum import IntFlag
 from torch.utils.cpp_extension import ROCM_HOME
 
 
-class RunStateInfo(object):
+class _FallbackLevel(IntFlag):
+    """Level to trigger fallback from ONNX Runtime engine to PyTorch
+
+    Each level can be combined with the others (using |) in order to aggregate them"""
+
+    FALLBACK_DISABLE = 1 # Must be the first
+    FALLBACK_FORCE_TORCH_FORWARD = 2
+    FALLBACK_UNSUPPORTED_DEVICE = 4
+    FALLBACK_UNSUPPORTED_INPUT = 8
+    FALLBACK_UNSUPPORTED_OUTPUT = 16
+    FALLBACK_UNSUPPORTED_TORCH_MODEL = 32
+    FALLBACK_UNSUPPORTED_ONNX_MODEL = 64
+
+class _RunStateInfo(object):
     def __init__(self, state, output_info):
         """
         :param state: State of partial run that contains intermediate tensors needed to resume the run later.
@@ -65,6 +79,11 @@ class GraphExecutionManager(GraphExecutionInterface):
         """
 
         super(GraphExecutionManager, self).__init__(module._original_module)
+
+        # Fallback configuration must be in the beginning to catch initialization errors
+        # Training and Evaluation mode can override this setting independently of each other
+        self._fallback_level = _FallbackLevel.FALLBACK_DISABLE
+        self._fallback_exception = None
 
         # Original and flattened (tranformed) output module
         self._flattened_module = module
@@ -174,7 +193,7 @@ class GraphExecutionManager(GraphExecutionInterface):
         Returns:
             Returns a tuple (user_outputs, run_info):
             user_outputs: The model output (either torch.Tensor or a container of torch.Tensor)
-            run_info: A RunStateInfo which contains extra information about the execution of the graph
+            run_info: A _RunStateInfo which contains extra information about the execution of the graph
         """
 
         raise NotImplemented
@@ -367,5 +386,5 @@ class GraphExecutionManager(GraphExecutionInterface):
 
         # Initializers can be cached and used since they are expected not to be re-instantiated
         # between forward calls.
-        self._graph_initializers = [param for name, param in self._flattened_module.named_parameters() 
+        self._graph_initializers = [param for name, param in self._flattened_module.named_parameters()
                                     if name in self._graph_initializer_names]

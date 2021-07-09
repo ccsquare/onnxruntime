@@ -13,6 +13,7 @@ import functools
 import torch
 from typing import Iterator, Optional, Tuple, TypeVar, Set, Callable
 
+
 # Needed to override PyTorch methods
 T = TypeVar('T', bound='Module')
 

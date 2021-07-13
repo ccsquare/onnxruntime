@@ -62,9 +62,10 @@ class InferenceManager(GraphExecutionManager):
         Finally, we instantiate the ONNX Runtime InferenceSession through the InferenceAgent.
         '''
 
-        # Catch fallbacks from other stages other than forward()
-        if self._fallback_exception is not None:
-            return self._original_module(*inputs, **kwargs)
+        # Fallback to PyTorch due to failures *external* to forward(),
+        #  typically from initialization
+        if self._pending_fallback():
+            return self._apply_fallback(*inputs, **kwargs)
 
         try:
             # Exporting module to ONNX for the first time
@@ -107,14 +108,12 @@ class InferenceManager(GraphExecutionManager):
             return _io.unflatten_user_output(self._module_output_schema,
                                             user_outputs)
         except Exception as e:
-            if _FallbackLevel.FALLBACK_DISABLE not in self._fallback_level \
-                and _FallbackLevel.FALLBACK_FORCE_TORCH_FORWARD in self._fallback_level:
-                if self._loglevel <= _logger.LogLevel.WARNING:
-                    warnings.warn("Fallback for forward pass in eval mode was triggered", UserWarning)
-                self._fallback_exception = e
-                return self._original_module(*inputs, **kwargs)
-            else:
-                raise
+            self._update_fallback_state(e)
+
+        # Fallback to PyTorch due to failures *during* to forward(),
+        #  (e.g. export, model/input post-processing, forward, output processing, etc)
+        if self._pending_fallback():
+            return self._apply_fallback(*inputs, **kwargs)
 
     def _build_graph(self):
         """Build an optimized inference graph using the module_graph_builder"""

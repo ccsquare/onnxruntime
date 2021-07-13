@@ -37,6 +37,14 @@ class _FallbackLevel(IntFlag):
     FALLBACK_UNSUPPORTED_TORCH_MODEL = 32
     FALLBACK_UNSUPPORTED_ONNX_MODEL = 64
 
+    def is_set(self, level):
+        if _FallbackLevel.is_disabled(self) and _FallbackLevel.FALLBACK_DISABLE in level:
+            return True
+        return not _FallbackLevel.is_disabled(self) and level in self
+
+    def is_disabled(self):
+        return _FallbackLevel.FALLBACK_DISABLE in self
+
 class _RunStateInfo(object):
     def __init__(self, state, output_info):
         """
@@ -269,8 +277,6 @@ class GraphExecutionManager(GraphExecutionInterface):
         self._set_device_from_module(inputs, kwargs)
         self._onnx_model = self._get_exported_model(*inputs, **kwargs)
         _cpp_ext._load_aten_op_executor_cpp_extension_if_needed(self._onnx_model)
-        if self._save_onnx:
-            onnx.save(self._onnx_model, self._save_onnx_prefix + '_torch_exporter.onnx')
 
         if self._run_symbolic_shape_infer:
             self._onnx_model = SymbolicShapeInference.infer_shapes(self._onnx_model, auto_merge=True, guess_output_rank=True)
@@ -327,6 +333,8 @@ class GraphExecutionManager(GraphExecutionInterface):
         except RuntimeError as e:
             raise RuntimeError('There was an error while exporting the PyTorch model to ONNX: {}'.format(e))
         exported_model = onnx.load_model_from_string(f.getvalue())
+        if self._save_onnx:
+            onnx.save(exported_model, self._save_onnx_prefix + '_torch_exporter2.onnx')
 
         exported_model = _post_process_after_export(exported_model, self._enable_custom_autograd_function)
 
@@ -388,3 +396,22 @@ class GraphExecutionManager(GraphExecutionInterface):
         # between forward calls.
         self._graph_initializers = [param for name, param in self._flattened_module.named_parameters()
                                     if name in self._graph_initializer_names]
+
+    def _update_fallback_state(self, exception: Exception):
+
+        self._fallback_exception = None
+        for level in _FallbackLevel:
+            if level is not _FallbackLevel.FALLBACK_DISABLE and self._fallback_level.is_set(level):
+                if self._loglevel <= _logger.LogLevel.WARNING:
+                    warnings.warn(f'Fallback level {level.name} was detected.', UserWarning)
+                self._fallback_exception = exception
+                break
+
+        if self._fallback_exception is None:
+            raise exception
+
+    def _pending_fallback(self):
+        return self._fallback_exception is not None
+
+    def _apply_fallback(self, *inputs, **kwargs):
+        return self._original_module(*inputs, **kwargs)

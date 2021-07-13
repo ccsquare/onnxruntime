@@ -61,8 +61,13 @@ class TrainingManager(GraphExecutionManager):
 
         # Fallback to PyTorch due to failures *external* to forward(),
         #  typically from initialization
+<<<<<<< HEAD
         if self._fallback_manager._is_pending():
             return self._fallback_manager._fallback(self._original_module, *inputs, **kwargs)
+=======
+        if self._pending_fallback():
+            return self._apply_fallback(*inputs, **kwargs)
+>>>>>>> Refactor fallback
 
         try:
             # Exporting module to ONNX for the first time

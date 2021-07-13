@@ -156,8 +156,8 @@ class GraphExecutionManager(GraphExecutionInterface):
         # Log level
         self._loglevel = _logger.LogLevel.WARNING
 
-        # TODO: Single device support for now
-        self._device = _utils.get_device_from_module(module)
+        # Device is assigned on first forward to postpone fallback validation
+        self._device = None
 
         self._module_parameters = inspect.signature(self._original_module.forward).parameters.values()
 
@@ -397,9 +397,7 @@ class GraphExecutionManager(GraphExecutionInterface):
         self._graph_initializers = [param for name, param in self._flattened_module.named_parameters()
                                     if name in self._graph_initializer_names]
 
-    def _update_fallback_state(self, exception: Exception):
-
-        self._fallback_exception = None
+    def _check_fallback(self, exception: Exception):
         for level in _FallbackLevel:
             if level is not _FallbackLevel.FALLBACK_DISABLE and self._fallback_level.is_set(level):
                 if self._loglevel <= _logger.LogLevel.WARNING:

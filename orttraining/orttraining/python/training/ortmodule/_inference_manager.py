@@ -108,7 +108,7 @@ class InferenceManager(GraphExecutionManager):
             return _io.unflatten_user_output(self._module_output_schema,
                                             user_outputs)
         except Exception as e:
-            self._update_fallback_state(e)
+            self._check_fallback(e)
 
         # Fallback to PyTorch due to failures *during* to forward(),
         #  (e.g. export, model/input post-processing, forward, output processing, etc)

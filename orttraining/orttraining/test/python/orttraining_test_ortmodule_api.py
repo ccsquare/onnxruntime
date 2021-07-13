@@ -2975,3 +2975,36 @@ def test_ortmodule_fallback_forward(is_training, fallback_enabled):
         with pytest.raises(TypeError) as type_error:
             ort_model(inputs)
         assert "ORTModule does not support the following model data type" in str(type_error.value)
+
+
+@pytest.mark.parametrize("is_training,fallback_enabled", [(True, True), (False, True), (True, False), (False, False)])
+def test_ortmodule_fallback_device(is_training, fallback_enabled):
+
+    class ManyDevicesNet(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.net1 = torch.nn.Linear(10, 10).to('cuda:0')
+            self.relu = torch.nn.ReLU()
+            self.net2 = torch.nn.Linear(10, 5).to('cpu')
+
+        def forward(self, x):
+            x = self.relu(self.net1(x.to('cuda:0')))
+            return self.net2(x.to('cpu'))
+
+
+    pt_model = ManyDevicesNet()
+    ort_model = ORTModule(copy.deepcopy(pt_model))
+    inputs = torch.randn(20, 10)
+
+    from onnxruntime.training.ortmodule._graph_execution_manager import _FallbackLevel
+    ort_model.train(is_training)
+    if fallback_enabled:
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_level = _FallbackLevel.FALLBACK_UNSUPPORTED_DEVICE
+        ort_out = ort_model(inputs)
+        pt_out = pt_model(inputs)
+        _test_helpers.assert_values_are_close(ort_out, pt_out, rtol=0, atol=0)
+    else:
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_level = _FallbackLevel.FALLBACK_DISABLE
+        with pytest.raises(RuntimeError) as type_error:
+            ort_model(inputs)
+        assert "ORTModule supports a single device per model" in str(type_error.value)

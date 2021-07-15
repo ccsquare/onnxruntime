@@ -10,6 +10,9 @@ import torch
 import warnings
 import gc
 
+from ._fallback import ORTModuleTypeError
+
+
 class _OutputIdentityOp(torch.autograd.Function):
     '''Internal class used to prepend Identity ops in model's outputs
 
@@ -321,7 +324,7 @@ def _extract_schema(data):
         for key in sorted(data):
             data[key] = _extract_schema(data[key])
     else:
-        raise TypeError(f'ORTModule does not support the following model data type {type(data)}')
+        raise ORTModuleTypeError(f'ORTModule does not support the following model data type {type(data)}')
     return data
 
 

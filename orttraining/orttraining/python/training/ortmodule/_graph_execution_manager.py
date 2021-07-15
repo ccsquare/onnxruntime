@@ -6,13 +6,13 @@
 from . import _utils, _io, _logger, torch_cpp_extensions as _cpp_ext
 from ._custom_autograd_function_exporter import _post_process_after_export
 from ._graph_execution_interface import GraphExecutionInterface
-from onnxruntime.training.ortmodule import ONNX_OPSET_VERSION
+from ._fallback import _FallbackManager, _FallbackPolicy
 
+from onnxruntime.training.ortmodule import ONNX_OPSET_VERSION
 from onnxruntime.capi import _pybind_state as C
 from onnxruntime.tools.symbolic_shape_infer import SymbolicShapeInference
-from abc import ABC, abstractmethod
+
 import copy
-from enum import IntFlag
 import io
 import inspect
 import onnx
@@ -21,29 +21,9 @@ import torch
 import warnings
 from enum import IntFlag
 
+from abc import ABC, abstractmethod
 from torch.utils.cpp_extension import ROCM_HOME
 
-
-class _FallbackLevel(IntFlag):
-    """Level to trigger fallback from ONNX Runtime engine to PyTorch
-
-    Each level can be combined with the others (using |) in order to aggregate them"""
-
-    FALLBACK_DISABLE = 1 # Must be the first
-    FALLBACK_FORCE_TORCH_FORWARD = 2
-    FALLBACK_UNSUPPORTED_DEVICE = 4
-    FALLBACK_UNSUPPORTED_INPUT = 8
-    FALLBACK_UNSUPPORTED_OUTPUT = 16
-    FALLBACK_UNSUPPORTED_TORCH_MODEL = 32
-    FALLBACK_UNSUPPORTED_ONNX_MODEL = 64
-
-    def is_set(self, level):
-        if _FallbackLevel.is_disabled(self) and _FallbackLevel.FALLBACK_DISABLE in level:
-            return True
-        return not _FallbackLevel.is_disabled(self) and level in self
-
-    def is_disabled(self):
-        return _FallbackLevel.FALLBACK_DISABLE in self
 
 class _RunStateInfo(object):
     def __init__(self, state, output_info):
@@ -88,10 +68,13 @@ class GraphExecutionManager(GraphExecutionInterface):
 
         super(GraphExecutionManager, self).__init__(module._original_module)
 
+        # Log level
+        self._loglevel = _logger.LogLevel.WARNING
+
         # Fallback configuration must be in the beginning to catch initialization errors
         # Training and Evaluation mode can override this setting independently of each other
-        self._fallback_level = _FallbackLevel.FALLBACK_DISABLE
-        self._fallback_exception = None
+        self._fallback_manager = _FallbackManager(policy=_FallbackPolicy.FALLBACK_DISABLE,
+                                                  log_level=self._loglevel)
 
         # Original and flattened (tranformed) output module
         self._flattened_module = module
@@ -152,9 +135,6 @@ class GraphExecutionManager(GraphExecutionInterface):
 
         self._input_info = None
         self._module_output_schema = None
-
-        # Log level
-        self._loglevel = _logger.LogLevel.WARNING
 
         # Device is assigned on first forward to postpone fallback validation
         self._device = None
@@ -396,20 +376,3 @@ class GraphExecutionManager(GraphExecutionInterface):
         # between forward calls.
         self._graph_initializers = [param for name, param in self._flattened_module.named_parameters()
                                     if name in self._graph_initializer_names]
-
-    def _check_fallback(self, exception: Exception):
-        for level in _FallbackLevel:
-            if level is not _FallbackLevel.FALLBACK_DISABLE and self._fallback_level.is_set(level):
-                if self._loglevel <= _logger.LogLevel.WARNING:
-                    warnings.warn(f'Fallback level {level.name} was detected.', UserWarning)
-                self._fallback_exception = exception
-                break
-
-        if self._fallback_exception is None:
-            raise exception
-
-    def _pending_fallback(self):
-        return self._fallback_exception is not None
-
-    def _apply_fallback(self, *inputs, **kwargs):
-        return self._original_module(*inputs, **kwargs)

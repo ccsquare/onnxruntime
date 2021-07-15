@@ -17,7 +17,7 @@ from collections import namedtuple
 from inspect import signature
 import tempfile
 
-from onnxruntime.training.ortmodule import ORTModule, _utils, _io
+from onnxruntime.training.ortmodule import ORTModule, _utils, _io, _fallback
 import _test_helpers
 
 # Import autocasting libs
@@ -1496,9 +1496,11 @@ def test_model_with_multiple_devices_cpu_cuda():
             return x
 
     model = MultipleDeviceModel()
-    with pytest.raises(RuntimeError) as e:
-        model = ORTModule(model)
-    assert str(e.value) == 'ORTModule supports a single device per model for now'
+    model = ORTModule(model)
+    x = torch.randn(20, 10)
+    with pytest.raises(_fallback.FallbackBaseException) as e:
+        _ = model(x)
+    assert str(e.value) == 'ORTModule supports a single device per model'
 
 def test_model_with_multiple_devices_to_to():
     class MultipleDeviceModel(torch.nn.Module):
@@ -1513,9 +1515,11 @@ def test_model_with_multiple_devices_to_to():
             return x
 
     model = MultipleDeviceModel()
-    with pytest.raises(RuntimeError) as e:
-        model = ORTModule(model)
-    assert str(e.value) == 'ORTModule supports a single device per model for now'
+    model = ORTModule(model)
+    x = torch.randn(20, 10)
+    with pytest.raises(_fallback.FallbackBaseException) as e:
+        _ = model(x)
+    assert str(e.value) == 'ORTModule supports a single device per model'
 
 def test_model_with_multiple_devices_to_cpu():
     class MultipleDeviceModel(torch.nn.Module):
@@ -1530,9 +1534,11 @@ def test_model_with_multiple_devices_to_cpu():
             return x
 
     model = MultipleDeviceModel()
-    with pytest.raises(RuntimeError) as e:
-        model = ORTModule(model)
-    assert str(e.value) == 'ORTModule supports a single device per model for now'
+    model = ORTModule(model)
+    x = torch.randn(20, 10)
+    with pytest.raises(_fallback.FallbackBaseException) as e:
+        _ = model(x)
+    assert str(e.value) == 'ORTModule supports a single device per model'
 
 def test_model_with_multiple_devices_to_cuda():
     class MultipleDeviceModel(torch.nn.Module):
@@ -1547,9 +1553,12 @@ def test_model_with_multiple_devices_to_cuda():
             return x
 
     model = MultipleDeviceModel()
-    with pytest.raises(RuntimeError) as e:
-        model = ORTModule(model)
-    assert str(e.value) == 'ORTModule supports a single device per model for now'
+    model = ORTModule(model)
+    x = torch.randn(20, 10)
+    with pytest.raises(_fallback.FallbackBaseException) as e:
+        _ = model(x)
+
+    assert str(e.value) == 'ORTModule supports a single device per model'
 
 @pytest.mark.parametrize("device", ['cuda', 'cuda:0', 'cuda:1', 'cuda:2'])
 def test_model_with_different_cuda_devices(device):
@@ -1727,7 +1736,7 @@ def test_forward_data_and_model_on_different_devices(data_device, model_device):
 
     # Now that the model has been exported, feed in data from device other than the model device
     x = torch.randn(N, D_in, device=data_device)
-    with pytest.raises(RuntimeError) as runtime_error:
+    with pytest.raises(_fallback.ORTModuleDeviceException) as runtime_error:
         ort_model(x)
     assert f"Input argument to forward found on device {torch.device(x.device)}, but expected it to be on module device {ort_model._torch_module._execution_manager(ort_model._is_training())._device}." in str(runtime_error.value)
 
@@ -2854,7 +2863,7 @@ def test_input_with_string_exception():
 
     model = MyStrNet()
     model = ORTModule(model)
-    with pytest.raises(TypeError) as ex_info:
+    with pytest.raises(_fallback.ORTModuleTypeError) as ex_info:
         _ = model(torch.randn(1, 2), 'hello')
     assert "ORTModule does not support the following model data type <class 'str'>" in str(ex_info.value)
 
@@ -2963,22 +2972,21 @@ def test_ortmodule_fallback_forward(is_training, fallback_enabled):
     ort_model = ORTModule(copy.deepcopy(pt_model))
     inputs = Point(x=2,y=3)
 
-    from onnxruntime.training.ortmodule._graph_execution_manager import _FallbackLevel
     ort_model.train(is_training)
     if fallback_enabled:
-        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_level = _FallbackLevel.FALLBACK_FORCE_TORCH_FORWARD
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD
         ort_out = ort_model(inputs)
         pt_out = pt_model(inputs)
         assert ort_out == pt_out
     else:
-        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_level = _FallbackLevel.FALLBACK_DISABLE
-        with pytest.raises(TypeError) as type_error:
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
+        with pytest.raises(_fallback.FallbackBaseException) as type_error:
             ort_model(inputs)
         assert "ORTModule does not support the following model data type" in str(type_error.value)
 
 
 @pytest.mark.parametrize("is_training,fallback_enabled", [(True, True), (False, True), (True, False), (False, False)])
-def test_ortmodule_fallback_device(is_training, fallback_enabled):
+def test_ortmodule_fallback_device__multiple(is_training, fallback_enabled):
 
     class ManyDevicesNet(torch.nn.Module):
         def __init__(self):
@@ -2996,15 +3004,40 @@ def test_ortmodule_fallback_device(is_training, fallback_enabled):
     ort_model = ORTModule(copy.deepcopy(pt_model))
     inputs = torch.randn(20, 10)
 
-    from onnxruntime.training.ortmodule._graph_execution_manager import _FallbackLevel
     ort_model.train(is_training)
     if fallback_enabled:
-        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_level = _FallbackLevel.FALLBACK_UNSUPPORTED_DEVICE
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE
         ort_out = ort_model(inputs)
         pt_out = pt_model(inputs)
         _test_helpers.assert_values_are_close(ort_out, pt_out, rtol=0, atol=0)
     else:
-        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_level = _FallbackLevel.FALLBACK_DISABLE
-        with pytest.raises(RuntimeError) as type_error:
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
+        with pytest.raises(_fallback.FallbackBaseException) as type_error:
             ort_model(inputs)
         assert "ORTModule supports a single device per model" in str(type_error.value)
+
+
+@pytest.mark.parametrize("is_training,fallback_enabled", [(True, True), (False, True), (True, False), (False, False)])
+def test_ortmodule_fallback_device__mismatch(is_training, fallback_enabled):
+
+    data_device = 'cuda'
+    N, D_in, H, D_out = 64, 784, 500, 10
+
+    # For initial model export, use same device for data and model
+    model = NeuralNetSinglePositionalArgument(D_in, H, D_out)
+    model = ORTModule(model)
+    model.train(is_training)
+    output = model(torch.randn(N, D_in))
+
+    # Use data in different device for testing
+    inputs = torch.randn(N, D_in, device=data_device)
+    if fallback_enabled:
+        model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE
+        with pytest.raises(RuntimeError) as e:
+            model(inputs)
+        assert "Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0!" in str(e.value)
+    else:
+        model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
+        with pytest.raises(_fallback.ORTModuleDeviceException) as e:
+            model(inputs)
+        assert f"Input argument to forward found on device {torch.device(inputs.device)}, but expected it to be on module device {model._torch_module._execution_manager(model._is_training())._device}." in str(e.value)

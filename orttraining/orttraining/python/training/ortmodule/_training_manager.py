@@ -4,9 +4,15 @@
 # --------------------------------------------------------------------------
 
 from . import _utils, _io, _logger
+<<<<<<< HEAD
 from ._graph_execution_manager import GraphExecutionManager, _RunStateInfo, _SkipCheck
 from ._execution_agent import TrainingAgent
 from ._fallback import ORTModuleFallbackException, _FallbackPolicy
+=======
+from ._graph_execution_manager import GraphExecutionManager, _RunStateInfo
+from ._execution_agent import TrainingAgent
+from ._fallback import FallbackBaseException, _FallbackPolicy
+>>>>>>> Refactor fallback code around FallbackManager
 
 from onnxruntime.capi import _pybind_state as C
 from onnxruntime.capi.onnxruntime_inference_collection import get_ort_device_type
@@ -62,12 +68,17 @@ class TrainingManager(GraphExecutionManager):
         # Fallback to PyTorch due to failures *external* to forward(),
         #  typically from initialization
 <<<<<<< HEAD
+<<<<<<< HEAD
         if self._fallback_manager._is_pending():
             return self._fallback_manager._fallback(self._original_module, *inputs, **kwargs)
 =======
         if self._pending_fallback():
             return self._apply_fallback(*inputs, **kwargs)
 >>>>>>> Refactor fallback
+=======
+        if self._fallback_manager._is_pending():
+            return self._fallback_manager._fallback(self._original_module, *inputs, **kwargs)
+>>>>>>> Refactor fallback code around FallbackManager
 
         try:
             # Exporting module to ONNX for the first time

@@ -3017,8 +3017,13 @@ def test_ortmodule_fallback_device__multiple(is_training, fallback_enabled):
         assert "ORTModule supports a single device per model" in str(type_error.value)
 
 
-@pytest.mark.parametrize("is_training,fallback_enabled", [(True, True), (False, True), (True, False), (False, False)])
-def test_ortmodule_fallback_device__mismatch(is_training, fallback_enabled):
+@pytest.mark.parametrize("is_training,fallback_enabled,matching_policy", [(True, True, True), (False, True, True), (True, False, True), (False, False, True),
+                                                                          (True, True, False), (False, True, False), (True, False, False), (False, False, False)])
+def test_ortmodule_fallback_device__mismatch(is_training, fallback_enabled, matching_policy):
+    # is_training: True for torch.nn.Module training model, eval mode otherwise
+    # fallback_enabled: True results in PyTorch executing the forward graph instead of ORT backend
+    # matching_policy: Tru results in properly matching FALLBACK_UNSUPPORTED_DEVICE policy to ORTModuleDeviceException exception.
+    #   Otherwise, an incorrect policy (FALLBACK_UNSUPPORTED_INPUT) is used to verify that the fallback does not happen
 
     data_device = 'cuda'
     N, D_in, H, D_out = 64, 784, 500, 10
@@ -3029,13 +3034,20 @@ def test_ortmodule_fallback_device__mismatch(is_training, fallback_enabled):
     model.train(is_training)
     output = model(torch.randn(N, D_in))
 
+    policy = _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE if matching_policy else _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT
+
     # Use data in different device for testing
     inputs = torch.randn(N, D_in, device=data_device)
     if fallback_enabled:
-        model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE
-        with pytest.raises(RuntimeError) as e:
-            model(inputs)
-        assert "Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0!" in str(e.value)
+        model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = policy
+        if matching_policy:
+            with pytest.raises(RuntimeError) as e:
+                model(inputs)
+            assert "Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0!" in str(e.value)
+        else:
+            with pytest.raises(_fallback.ORTModuleDeviceException) as e:
+                model(inputs)
+            assert f"Input argument to forward found on device {torch.device(inputs.device)}, but expected it to be on module device {model._torch_module._execution_manager(model._is_training())._device}." in str(e.value)
     else:
         model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
         with pytest.raises(_fallback.ORTModuleDeviceException) as e:

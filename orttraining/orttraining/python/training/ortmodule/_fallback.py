@@ -57,7 +57,11 @@ class _FallbackManager(object):
                  log_level: _logger.LogLevel):
         super().__init__()
         self._log_level = log_level
-        self._policy_exception_map = {}
+        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: set([ORTModuleDeviceException, ORTModuleTypeError]),
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE.value: set([ORTModuleDeviceException]),
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT.value: set([ORTModuleTypeError]),
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_OUTPUT.value: set([ORTModuleTypeError])
+                                     }
         self._policy = policy
         self._exception = None
 
@@ -65,12 +69,15 @@ class _FallbackManager(object):
                           exception: Exception,
                           policy: Optional[_FallbackPolicy] = None) -> None:
 
-        # TODO: HOW TO BIND FALLBACK EXCEPTIONS TO FALLBACK POLICY?
-
         def _set_exception(policy, exception):
-            if policy is not _FallbackPolicy.FALLBACK_DISABLE and self._policy.is_set(policy):
+
+
+            if policy is not _FallbackPolicy.FALLBACK_DISABLE and \
+                    self._policy.is_set(policy) and \
+                    (policy.value in self._policy_exception_map and type(exception) in self._policy_exception_map[policy.value]):
+
                 if self._log_level <= _logger.LogLevel.WARNING:
-                    warnings.warn(f'Fallback policy {policy.name} was detected.', UserWarning)
+                    warnings.warn(f'Fallback for policy {policy.name} is now pending.', UserWarning)
                 self._exception = exception
 
         if policy is None:
@@ -86,4 +93,6 @@ class _FallbackManager(object):
         return self._exception is not None
 
     def _fallback(self, model: torch.nn.Module, *inputs, **kwargs):
+        if self._log_level <= _logger.LogLevel.WARNING:
+            warnings.warn(f'Fallback due to exception {type(self._exception)} was triggered.', UserWarning)
         return model(*inputs, **kwargs)

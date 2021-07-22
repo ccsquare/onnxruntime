@@ -5,7 +5,7 @@
 
 from onnxruntime.capi.onnxruntime_inference_collection import OrtValue
 from onnxruntime.capi import _pybind_state as C
-from ._fallback import _FallbackManager, FallbackBaseException, ORTModuleDeviceException
+from ._fallback import _FallbackManager, ORTModuleFallbackException, ORTModuleDeviceException
 
 import torch
 from torch.utils.dlpack import from_dlpack, to_dlpack
@@ -74,7 +74,7 @@ def get_device_from_module(module):
         module (torch.nn.Module): PyTorch model to extract device from
 
     Raises:
-        FallbackBaseException: When more than one device is found at `module`
+        ORTModuleFallbackException: When more than one device is found at `module`
     '''
     device = None
     try:

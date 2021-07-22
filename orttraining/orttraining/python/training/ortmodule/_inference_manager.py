@@ -5,7 +5,7 @@
 
 from . import _utils, _io, _logger
 from ._graph_execution_manager import GraphExecutionManager, _RunStateInfo
-from ._fallback import FallbackBaseException, _FallbackPolicy
+from ._fallback import ORTModuleFallbackException, _FallbackPolicy
 from ._execution_agent import InferenceAgent
 
 from onnxruntime.capi import _pybind_state as C
@@ -108,7 +108,7 @@ class InferenceManager(GraphExecutionManager):
 
             return _io.unflatten_user_output(self._module_output_schema,
                                             user_outputs)
-        except FallbackBaseException as e:
+        except ORTModuleFallbackException as e:
             # Exceptions subject to fallback are handled here
             self._fallback_manager._handle_exception(e)
         except Exception as e:

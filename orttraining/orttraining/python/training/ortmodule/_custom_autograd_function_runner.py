@@ -129,7 +129,7 @@ def call_python_forward_function(
         print('Exception happens when running ', forward_function)
         sys.stdout.flush()
         sys.stderr.flush()
-        _FallbackManager.raise_exception(FallbackBaseException, e)
+        _FallbackManager.raise_exception(ORTModuleFallbackException, e)
 
 
 def call_python_backward_function(
@@ -182,4 +182,4 @@ def call_python_backward_function(
         print('Exception happens when running ', backward_function)
         sys.stdout.flush()
         sys.stderr.flush()
-        _FallbackManager.raise_exception(FallbackBaseException, e)
+        _FallbackManager.raise_exception(ORTModuleFallbackException, e)

@@ -25,7 +25,7 @@ class _FallbackPolicy(IntFlag):
     FALLBACK_UNSUPPORTED_OUTPUT = 32
     FALLBACK_UNSUPPORTED_TORCH_MODEL = 64
     FALLBACK_UNSUPPORTED_ONNX_MODEL = 128
-    FALLBACK_INITIALIZATION = 256
+    FALLBACK_BAD_INITIALIZATION = 256
 
     def is_set(self, policy):
         '''Check whether `policy` is set on the `_FallbackPolicy instance
@@ -41,7 +41,7 @@ class _FallbackPolicy(IntFlag):
         return _FallbackPolicy.FALLBACK_DISABLE in self
 
 
-class FallbackBaseException(Exception):
+class ORTModuleFallbackException(Exception):
     '''Base exception class for fallback
 
     Although it must be specialized for specific scenarios,
@@ -50,7 +50,7 @@ class FallbackBaseException(Exception):
     pass
 
 
-class FallbackInitException(Exception):
+class ORTModuleInitException(ORTModuleFallbackException):
     '''Trigger fallback for ORTModule initialization related exceptions
 
     This exception is triggered when an incompatible or missing requirements for ORTModule are detected,
@@ -58,7 +58,7 @@ class FallbackInitException(Exception):
     '''
     pass
 
-class ORTModuleDeviceException(FallbackBaseException):
+class ORTModuleDeviceException(ORTModuleFallbackException):
     '''Trigger fallback for device related exceptions
 
     NOTE: This exception is raised during device validation within ORTModule frontend.
@@ -69,7 +69,7 @@ class ORTModuleDeviceException(FallbackBaseException):
     pass
 
 
-class ORTModuleIOError(FallbackBaseException):
+class ORTModuleIOError(ORTModuleFallbackException):
     '''Trigger fallback for I/O related exceptions
 
     NOTE: This exception is raised during I/O validation within ORTModule Frontend.
@@ -80,7 +80,7 @@ class ORTModuleIOError(FallbackBaseException):
     pass
 
 
-class ORTModuleTorchModelException(FallbackBaseException):
+class ORTModuleTorchModelException(ORTModuleFallbackException):
     '''Trigger fallback for PyTorch modules related exceptions
 
     This exception is raised during model validation within ORTModule frontend and is based on
@@ -90,7 +90,7 @@ class ORTModuleTorchModelException(FallbackBaseException):
     pass
 
 
-class ORTModuleONNXModelException(FallbackBaseException):
+class ORTModuleONNXModelException(ORTModuleFallbackException):
     '''Trigger fallback for ONNX model related exceptions
 
     This exception is raised during model conversion to ONNX and post-processing validation within ORTModule frontend.
@@ -116,18 +116,22 @@ class _FallbackManager(object):
                  log_level: _logger.LogLevel):
         super().__init__()
         self._log_level = log_level
-        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: {FallbackBaseException,
+        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: {ORTModuleFallbackException,
                                                                                            ORTModuleDeviceException,
                                                                                            ORTModuleIOError,
-                                                                                           ORTModuleTorchModelException},
-                                      _FallbackPolicy.FALLBACK_FORCE_TORCH_BACKWARD.value: {FallbackBaseException,
+                                                                                           ORTModuleTorchModelException,
+                                                                                           ORTModuleONNXModelException},
+                                      _FallbackPolicy.FALLBACK_FORCE_TORCH_BACKWARD.value: {ORTModuleFallbackException,
                                                                                             ORTModuleDeviceException,
                                                                                             ORTModuleIOError,
-                                                                                            ORTModuleTorchModelException},
+                                                                                            ORTModuleTorchModelException,
+                                                                                            ORTModuleONNXModelException},
                                       _FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE.value: {ORTModuleDeviceException},
                                       _FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT.value: {ORTModuleIOError},
                                       _FallbackPolicy.FALLBACK_UNSUPPORTED_OUTPUT.value: {ORTModuleIOError},
                                       _FallbackPolicy.FALLBACK_UNSUPPORTED_TORCH_MODEL.value : {ORTModuleTorchModelException},
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_ONNX_MODEL.value : {ORTModuleONNXModelException},
+                                      _FallbackPolicy.FALLBACK_BAD_INITIALIZATION.value : {ORTModuleInitException},
                                       }
         self._policy = policy
         self._exception = None
@@ -146,7 +150,7 @@ class _FallbackManager(object):
             Args:
                 policy (_FallbackPolicy or None): Policy to be checked for the incoming `exception`.
                     if None is specified, all (except _FallbackPolicy.FALLBACK_DISABLE) are implicitly checked
-                exception (FallbackBaseException): Exception that must be handled
+                exception (ORTModuleFallbackException): Exception that must be handled
 
             Raises:
                 Exception: when there is no matching `policy` for the incoming `exception`
@@ -185,7 +189,7 @@ class _FallbackManager(object):
         return model(*inputs, **kwargs)
 
     @staticmethod
-    def raise_exception(new_exception: FallbackBaseException, raised_exception: Exception) -> FallbackBaseException:
+    def raise_exception(new_exception: ORTModuleFallbackException, raised_exception: Exception) -> ORTModuleFallbackException:
         '''Raises `new_exception` and set `raised_exception` as its cause'''
 
         raise new_exception(raised_exception) from raised_exception

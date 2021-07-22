@@ -1498,7 +1498,7 @@ def test_model_with_multiple_devices_cpu_cuda():
     model = MultipleDeviceModel()
     model = ORTModule(model)
     x = torch.randn(20, 10)
-    with pytest.raises(_fallback.FallbackBaseException) as e:
+    with pytest.raises(_fallback.ORTModuleFallbackException) as e:
         _ = model(x)
     assert str(e.value) == 'ORTModule supports a single device per model'
 
@@ -1517,7 +1517,7 @@ def test_model_with_multiple_devices_to_to():
     model = MultipleDeviceModel()
     model = ORTModule(model)
     x = torch.randn(20, 10)
-    with pytest.raises(_fallback.FallbackBaseException) as e:
+    with pytest.raises(_fallback.ORTModuleFallbackException) as e:
         _ = model(x)
     assert str(e.value) == 'ORTModule supports a single device per model'
 
@@ -1536,7 +1536,7 @@ def test_model_with_multiple_devices_to_cpu():
     model = MultipleDeviceModel()
     model = ORTModule(model)
     x = torch.randn(20, 10)
-    with pytest.raises(_fallback.FallbackBaseException) as e:
+    with pytest.raises(_fallback.ORTModuleFallbackException) as e:
         _ = model(x)
     assert str(e.value) == 'ORTModule supports a single device per model'
 
@@ -1555,7 +1555,7 @@ def test_model_with_multiple_devices_to_cuda():
     model = MultipleDeviceModel()
     model = ORTModule(model)
     x = torch.randn(20, 10)
-    with pytest.raises(_fallback.FallbackBaseException) as e:
+    with pytest.raises(_fallback.ORTModuleFallbackException) as e:
         _ = model(x)
 
     assert str(e.value) == 'ORTModule supports a single device per model'
@@ -2987,12 +2987,12 @@ def test_ortmodule_fallback_forward(is_training, fallback_enabled, matching_poli
             pt_out = pt_model(inputs)
             assert ort_out == pt_out
         else:
-            with pytest.raises(_fallback.FallbackBaseException) as type_error:
+            with pytest.raises(_fallback.ORTModuleFallbackException) as type_error:
                 ort_model(inputs)
             assert "ORTModule does not support the following model data type" in str(type_error.value)
     else:
         ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
-        with pytest.raises(_fallback.FallbackBaseException) as type_error:
+        with pytest.raises(_fallback.ORTModuleFallbackException) as type_error:
             ort_model(inputs)
         assert "ORTModule does not support the following model data type" in str(type_error.value)
 
@@ -3030,12 +3030,12 @@ def test_ortmodule_fallback_device__multiple(is_training, fallback_enabled, matc
             pt_out = pt_model(inputs)
             _test_helpers.assert_values_are_close(ort_out, pt_out, rtol=0, atol=0)
         else:
-            with pytest.raises(_fallback.FallbackBaseException) as type_error:
+            with pytest.raises(_fallback.ORTModuleFallbackException) as type_error:
                 ort_model(inputs)
             assert "ORTModule supports a single device per model" in str(type_error.value)
     else:
         ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
-        with pytest.raises(_fallback.FallbackBaseException) as type_error:
+        with pytest.raises(_fallback.ORTModuleFallbackException) as type_error:
             ort_model(inputs)
         assert "ORTModule supports a single device per model" in str(type_error.value)
 

@@ -13,9 +13,9 @@ from typing import Optional
 
 
 class _FallbackPolicy(IntFlag):
-    """Policy to trigger fallback from ONNX Runtime engine to PyTorch
+    '''Policy to trigger fallback from ONNX Runtime engine to PyTorch
 
-    Each policy can be combined with the others (using |) in order to aggregate them"""
+    Each policy can be combined with the others (using |) in order to aggregate them'''
 
     FALLBACK_DISABLE = 1
     FALLBACK_FORCE_TORCH_FORWARD = 2
@@ -40,28 +40,59 @@ class _FallbackPolicy(IntFlag):
 
 
 class FallbackBaseException(Exception):
+    '''Base exception class for fallback
+
+    Although it must be specialized for specific scenarios,
+    it can also be used for generic exception that require fallback
+    '''
     pass
 
 
 class ORTModuleDeviceException(FallbackBaseException):
+    '''Trigger fallback for device related exceptions
+
+    NOTE: This exception is raised during device validation within ORTModule frontend.
+    Some device related exceptions can only be detected during PyTorch ONNX exporter execution.
+    This exception does not capture these scenarios.
+    '''
+
     pass
 
 
 class ORTModuleTypeError(FallbackBaseException):
+    '''Trigger fallback for I/O related exceptions
+
+    NOTE: This exception is raised during I/O validation within ORTModule Frontend.
+    Some I/O related exceptions can only be detected during PyTorch ONNX exporter execution.
+    This exception does not capture these scenarios.
+    '''
+
     pass
 
 
 class _FallbackManager(object):
+    '''Manages fallbacks based on incoming exceptions and specified policies
+
+    The basic algorithm is based on a dictionary whose keys are the supported fallback policies
+    and and values are a set of Exception that must be detected.
+
+    When an exception that matches one of the enabled policies are detected,
+    a fallback will be pending to execute by ORTModule frontend.
+
+    On the other hand, when the exception doesn't match any enabled policy, the exception will
+    be raised to the user, terminating execution
+    '''
+
     def __init__(self,
                  policy: _FallbackPolicy,
                  log_level: _logger.LogLevel):
         super().__init__()
         self._log_level = log_level
-        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: set([ORTModuleDeviceException, ORTModuleTypeError]),
-                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE.value: set([ORTModuleDeviceException]),
-                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT.value: set([ORTModuleTypeError]),
-                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_OUTPUT.value: set([ORTModuleTypeError])
-                                     }
+        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: {ORTModuleDeviceException, ORTModuleTypeError},
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE.value: {ORTModuleDeviceException},
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT.value: {ORTModuleTypeError},
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_OUTPUT.value: {ORTModuleTypeError}
+                                      }
         self._policy = policy
         self._exception = None
 
@@ -70,7 +101,20 @@ class _FallbackManager(object):
                           policy: Optional[_FallbackPolicy] = None) -> None:
 
         def _set_exception(policy, exception):
+            '''Sets `exception` into `_FallbackManager` based on the specified `policy`
 
+            If the incoming `exception` is handled by the specified `policy`, than `_FallbackManager`
+            will save the exception as context so that ORTModule can learn about a pending fallback
+            and trigger it during model execution.
+
+            Args:
+                policy (_FallbackPolicy or None): Policy to be checked for the incoming `exception`.
+                    if None is specified, all (except _FallbackPolicy.FALLBACK_DISABLE) are implicitly checked
+                exception (FallbackBaseException): Exception that must be handled
+
+            Raises:
+                Exception: when there is no matching `policy` for the incoming `exception`
+            '''
 
             if policy is not _FallbackPolicy.FALLBACK_DISABLE and \
                     self._policy.is_set(policy) and \
@@ -90,9 +134,16 @@ class _FallbackManager(object):
             raise exception
 
     def _is_pending(self) -> bool:
+        '''Returns True when a fallback is pending
+
+        ORTModule must execute fallback to PyTorch engine when a pending fallback is detected
+        '''
+
         return self._exception is not None
 
     def _fallback(self, model: torch.nn.Module, *inputs, **kwargs):
+        '''Executes user PyTorch `model` using the provided inputs and return the result'''
+
         if self._log_level <= _logger.LogLevel.WARNING:
             warnings.warn(f'Fallback due to exception {type(self._exception)} was triggered.', UserWarning)
         return model(*inputs, **kwargs)

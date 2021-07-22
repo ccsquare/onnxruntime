@@ -4,15 +4,9 @@
 # --------------------------------------------------------------------------
 
 from . import _utils, _io, _logger
-<<<<<<< HEAD
 from ._graph_execution_manager import GraphExecutionManager, _RunStateInfo, _SkipCheck
 from ._execution_agent import TrainingAgent
 from ._fallback import ORTModuleFallbackException, _FallbackPolicy
-=======
-from ._graph_execution_manager import GraphExecutionManager, _RunStateInfo
-from ._execution_agent import TrainingAgent
-from ._fallback import FallbackBaseException, _FallbackPolicy
->>>>>>> Refactor fallback code around FallbackManager
 
 from onnxruntime.capi import _pybind_state as C
 from onnxruntime.capi.onnxruntime_inference_collection import get_ort_device_type

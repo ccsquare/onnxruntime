@@ -314,9 +314,12 @@ class GraphExecutionManager(GraphExecutionInterface):
             raise RuntimeError('There was an error while exporting the PyTorch model to ONNX: {}'.format(e))
         exported_model = onnx.load_model_from_string(f.getvalue())
         if self._save_onnx:
-            onnx.save(exported_model, self._save_onnx_prefix + '_torch_exporter2.onnx')
+            onnx.save(exported_model, self._save_onnx_prefix + '_torch_exporter.onnx')
 
         exported_model = _post_process_after_export(exported_model, self._enable_custom_autograd_function)
+
+        if self._save_onnx and self._enable_custom_autograd_function:
+            onnx.save(exported_model, self._save_onnx_prefix + 'torch_exporter_with_custom_autograd.onnx')
 
         return exported_model
 

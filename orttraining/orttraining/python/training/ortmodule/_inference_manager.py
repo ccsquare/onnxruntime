@@ -109,13 +109,13 @@ class InferenceManager(GraphExecutionManager):
             return _io.unflatten_user_output(self._module_output_schema,
                                             user_outputs)
         except FallbackBaseException as e:
-            # Exceptions subject to fallback get here
+            # Exceptions subject to fallback are handled here
             self._fallback_manager._handle_exception(e)
         except Exception as e:
-            # Last chance for fallback. FALLBACK_FORCE_TORCH_FORWARD is the only one possible here
+            # Catch-all FALLBACK_FORCE_TORCH_FORWARD fallback is handled here
             self._fallback_manager._handle_exception(e, _FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD)
 
-        # Fallback to PyTorch due to failures *during* to forward(),
+        # Fallback to PyTorch due to failures *during* forward(),
         #  (e.g. export, model/input post-processing, forward, output processing, etc)
         if self._fallback_manager._is_pending():
             return self._fallback_manager._fallback(self._original_module, *inputs, **kwargs)

@@ -1458,7 +1458,7 @@ def test_exception_raised_for_custom_class_return_value_module(device):
     y = torch.randn(N, D_in, device=device)
     z = torch.randn(N, D_in, device=device)
 
-    with pytest.raises(TypeError) as runtime_error:
+    with pytest.raises(_fallback.ORTModuleIOError) as runtime_error:
         model(x, y, z)
     assert 'ORTModule does not support the following model output type' in str(runtime_error.value)
 
@@ -2863,7 +2863,7 @@ def test_input_with_string_exception():
 
     model = MyStrNet()
     model = ORTModule(model)
-    with pytest.raises(_fallback.ORTModuleTypeError) as ex_info:
+    with pytest.raises(_fallback.ORTModuleIOError) as ex_info:
         _ = model(torch.randn(1, 2), 'hello')
     assert "ORTModule does not support the following model data type <class 'str'>" in str(ex_info.value)
 

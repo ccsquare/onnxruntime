@@ -5,7 +5,7 @@
 
 from onnxruntime.capi.onnxruntime_inference_collection import OrtValue
 from onnxruntime.capi import _pybind_state as C
-from ._fallback import FallbackBaseException, ORTModuleDeviceException
+from ._fallback import _FallbackManager, FallbackBaseException, ORTModuleDeviceException
 
 import torch
 from torch.utils.dlpack import from_dlpack, to_dlpack
@@ -36,8 +36,9 @@ def _check_same_device(device, argument_str, *args):
         if arg is not None and isinstance(arg, torch.Tensor):
             arg_device = torch.device(arg.device)
             if arg_device != device:
-                raise ORTModuleDeviceException(
-                    f"{argument_str} found on device {arg_device}, but expected it to be on module device {device}.")
+                _FallbackManager.raise_exception(ORTModuleDeviceException,
+                                                 RuntimeError(
+                                                       f"{argument_str} found on device {arg_device}, but expected it to be on module device {device}."))
 
 
 def get_device_index(device):
@@ -62,7 +63,7 @@ def get_device_str(device):
         else:
             device = device.type + ':' + str(device.index)
     else:
-        raise RuntimeError('Unsupported device type')
+        _FallbackManager.raise_exception(ORTModuleDeviceException, RuntimeError('Unsupported device type'))
     return device
 
 
@@ -80,7 +81,8 @@ def get_device_from_module(module):
         device = next(module.parameters()).device
         for param in module.parameters():
             if param.device != device:
-                raise ORTModuleDeviceException('ORTModule supports a single device per model')
+                _FallbackManager.raise_exception(ORTModuleDeviceException,
+                                                 RuntimeError('ORTModule supports a single device per model'))
     except StopIteration:
         # Model doesn't have a device set to any of the model parameters
         pass

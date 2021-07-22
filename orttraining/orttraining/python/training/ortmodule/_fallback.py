@@ -19,11 +19,13 @@ class _FallbackPolicy(IntFlag):
 
     FALLBACK_DISABLE = 1
     FALLBACK_FORCE_TORCH_FORWARD = 2
-    FALLBACK_UNSUPPORTED_DEVICE = 4
-    FALLBACK_UNSUPPORTED_INPUT = 8
-    FALLBACK_UNSUPPORTED_OUTPUT = 16
-    FALLBACK_UNSUPPORTED_TORCH_MODEL = 32
-    FALLBACK_UNSUPPORTED_ONNX_MODEL = 64
+    FALLBACK_FORCE_TORCH_BACKWARD = 4
+    FALLBACK_UNSUPPORTED_DEVICE = 8
+    FALLBACK_UNSUPPORTED_INPUT = 16
+    FALLBACK_UNSUPPORTED_OUTPUT = 32
+    FALLBACK_UNSUPPORTED_TORCH_MODEL = 64
+    FALLBACK_UNSUPPORTED_ONNX_MODEL = 128
+    FALLBACK_INITIALIZATION = 256
 
     def is_set(self, policy):
         '''Check whether `policy` is set on the `_FallbackPolicy instance
@@ -48,6 +50,14 @@ class FallbackBaseException(Exception):
     pass
 
 
+class FallbackInitException(Exception):
+    '''Trigger fallback for ORTModule initialization related exceptions
+
+    This exception is triggered when an incompatible or missing requirements for ORTModule are detected,
+    including PyTorch version, missing ORTModule's PyTorch C++ extension binaries, etc.
+    '''
+    pass
+
 class ORTModuleDeviceException(FallbackBaseException):
     '''Trigger fallback for device related exceptions
 
@@ -59,7 +69,7 @@ class ORTModuleDeviceException(FallbackBaseException):
     pass
 
 
-class ORTModuleTypeError(FallbackBaseException):
+class ORTModuleIOError(FallbackBaseException):
     '''Trigger fallback for I/O related exceptions
 
     NOTE: This exception is raised during I/O validation within ORTModule Frontend.
@@ -69,6 +79,24 @@ class ORTModuleTypeError(FallbackBaseException):
 
     pass
 
+
+class ORTModuleTorchModelException(FallbackBaseException):
+    '''Trigger fallback for PyTorch modules related exceptions
+
+    This exception is raised during model validation within ORTModule frontend and is based on
+    checking type(model) over a hardcoded list of incompatible models.
+    '''
+
+    pass
+
+
+class ORTModuleONNXModelException(FallbackBaseException):
+    '''Trigger fallback for ONNX model related exceptions
+
+    This exception is raised during model conversion to ONNX and post-processing validation within ORTModule frontend.
+    '''
+
+    pass
 
 class _FallbackManager(object):
     '''Manages fallbacks based on incoming exceptions and specified policies
@@ -88,10 +116,18 @@ class _FallbackManager(object):
                  log_level: _logger.LogLevel):
         super().__init__()
         self._log_level = log_level
-        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: {ORTModuleDeviceException, ORTModuleTypeError},
+        self._policy_exception_map = {_FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD.value: {FallbackBaseException,
+                                                                                           ORTModuleDeviceException,
+                                                                                           ORTModuleIOError,
+                                                                                           ORTModuleTorchModelException},
+                                      _FallbackPolicy.FALLBACK_FORCE_TORCH_BACKWARD.value: {FallbackBaseException,
+                                                                                            ORTModuleDeviceException,
+                                                                                            ORTModuleIOError,
+                                                                                            ORTModuleTorchModelException},
                                       _FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE.value: {ORTModuleDeviceException},
-                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT.value: {ORTModuleTypeError},
-                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_OUTPUT.value: {ORTModuleTypeError}
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT.value: {ORTModuleIOError},
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_OUTPUT.value: {ORTModuleIOError},
+                                      _FallbackPolicy.FALLBACK_UNSUPPORTED_TORCH_MODEL.value : {ORTModuleTorchModelException},
                                       }
         self._policy = policy
         self._exception = None
@@ -147,3 +183,9 @@ class _FallbackManager(object):
         if self._log_level <= _logger.LogLevel.WARNING:
             warnings.warn(f'Fallback due to exception {type(self._exception)} was triggered.', UserWarning)
         return model(*inputs, **kwargs)
+
+    @staticmethod
+    def raise_exception(new_exception: FallbackBaseException, raised_exception: Exception) -> FallbackBaseException:
+        '''Raises `new_exception` and set `raised_exception` as its cause'''
+
+        raise new_exception(raised_exception) from raised_exception

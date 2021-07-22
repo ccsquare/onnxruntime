@@ -2953,10 +2953,15 @@ def test_ortmodule_nested_list_input():
     _test_helpers.assert_values_are_close(pt_model(x), ort_model(y))
 
 
-@pytest.mark.parametrize("is_training,fallback_enabled", [(True, True), (False, True), (True, False), (False, False)])
-def test_ortmodule_fallback_forward(is_training, fallback_enabled):
-    from dataclasses import dataclass
+@pytest.mark.parametrize("is_training,fallback_enabled,matching_policy", [(True, True, True), (False, True, True), (True, False, True), (False, False, True),
+                                                                          (True, True, False), (False, True, False), (True, False, False), (False, False, False)])
+def test_ortmodule_fallback_forward(is_training, fallback_enabled, matching_policy):
+    # is_training: True for torch.nn.Module training model, eval mode otherwise
+    # fallback_enabled: True results in PyTorch executing the forward graph instead of ORT backend
+    # matching_policy: Tru results in properly matching FALLBACK_UNSUPPORTED_DEVICE policy to ORTModuleDeviceException exception.
+    #   Otherwise, an incorrect policy (FALLBACK_UNSUPPORTED_INPUT) is used to verify that the fallback does not happen
 
+    from dataclasses import dataclass
     @dataclass
     class Point:
         x: int
@@ -2972,12 +2977,19 @@ def test_ortmodule_fallback_forward(is_training, fallback_enabled):
     ort_model = ORTModule(copy.deepcopy(pt_model))
     inputs = Point(x=2,y=3)
 
+    policy = _fallback._FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD if matching_policy else _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE
+
     ort_model.train(is_training)
     if fallback_enabled:
-        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_FORCE_TORCH_FORWARD
-        ort_out = ort_model(inputs)
-        pt_out = pt_model(inputs)
-        assert ort_out == pt_out
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = policy
+        if matching_policy:
+            ort_out = ort_model(inputs)
+            pt_out = pt_model(inputs)
+            assert ort_out == pt_out
+        else:
+            with pytest.raises(_fallback.FallbackBaseException) as type_error:
+                ort_model(inputs)
+            assert "ORTModule does not support the following model data type" in str(type_error.value)
     else:
         ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
         with pytest.raises(_fallback.FallbackBaseException) as type_error:
@@ -2985,8 +2997,13 @@ def test_ortmodule_fallback_forward(is_training, fallback_enabled):
         assert "ORTModule does not support the following model data type" in str(type_error.value)
 
 
-@pytest.mark.parametrize("is_training,fallback_enabled", [(True, True), (False, True), (True, False), (False, False)])
-def test_ortmodule_fallback_device__multiple(is_training, fallback_enabled):
+@pytest.mark.parametrize("is_training,fallback_enabled,matching_policy", [(True, True, True), (False, True, True), (True, False, True), (False, False, True),
+                                                                          (True, True, False), (False, True, False), (True, False, False), (False, False, False)])
+def test_ortmodule_fallback_device__multiple(is_training, fallback_enabled, matching_policy):
+    # is_training: True for torch.nn.Module training model, eval mode otherwise
+    # fallback_enabled: True results in PyTorch executing the forward graph instead of ORT backend
+    # matching_policy: Tru results in properly matching FALLBACK_UNSUPPORTED_DEVICE policy to ORTModuleDeviceException exception.
+    #   Otherwise, an incorrect policy (FALLBACK_UNSUPPORTED_INPUT) is used to verify that the fallback does not happen
 
     class ManyDevicesNet(torch.nn.Module):
         def __init__(self):
@@ -2999,17 +3016,23 @@ def test_ortmodule_fallback_device__multiple(is_training, fallback_enabled):
             x = self.relu(self.net1(x.to('cuda:0')))
             return self.net2(x.to('cpu'))
 
-
     pt_model = ManyDevicesNet()
     ort_model = ORTModule(copy.deepcopy(pt_model))
     inputs = torch.randn(20, 10)
 
+    policy = _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE if matching_policy else _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_INPUT
+
     ort_model.train(is_training)
     if fallback_enabled:
-        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_UNSUPPORTED_DEVICE
-        ort_out = ort_model(inputs)
-        pt_out = pt_model(inputs)
-        _test_helpers.assert_values_are_close(ort_out, pt_out, rtol=0, atol=0)
+        ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = policy
+        if matching_policy:
+            ort_out = ort_model(inputs)
+            pt_out = pt_model(inputs)
+            _test_helpers.assert_values_are_close(ort_out, pt_out, rtol=0, atol=0)
+        else:
+            with pytest.raises(_fallback.FallbackBaseException) as type_error:
+                ort_model(inputs)
+            assert "ORTModule supports a single device per model" in str(type_error.value)
     else:
         ort_model._torch_module._execution_manager(is_training=is_training)._fallback_manager._policy = _fallback._FallbackPolicy.FALLBACK_DISABLE
         with pytest.raises(_fallback.FallbackBaseException) as type_error:

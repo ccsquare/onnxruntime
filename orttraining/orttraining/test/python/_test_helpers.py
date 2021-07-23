@@ -12,7 +12,7 @@ try:
 except ImportError:
     # Some pipelines do not contain ORTModule
     pass
-except EnvironmentError:
+except ORTModuleInitException:
     # Some pipelines do not contain ORTModule
     pass
 
@@ -104,14 +104,14 @@ def assert_optim_state(expected_state, actual_state, rtol=1e-7, atol=0):
                 "Update_Count": update_tensor # if optimizer is adam, absent otherwise
             },
         ...
-        "shared_optimizer_state": # if optimizer is shared, absent otherwise. 
+        "shared_optimizer_state": # if optimizer is shared, absent otherwise.
                                     So far, only lamb optimizer uses this.
         {
             "step": step_tensor # int array of size 1
         }
 
     Args:
-        expected_state (dict(dict())): Expected optimizer state 
+        expected_state (dict(dict())): Expected optimizer state
         actual_state (dict(dict())): Actual optimizer state
         rtol (float, default is 1e-7): Max relative difference
         atol (float, default is 0): Max absolute difference

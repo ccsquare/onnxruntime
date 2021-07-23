@@ -16,6 +16,6 @@ try:
 except ImportError:
     # Not a ORTModule training package
     pass
-except EnvironmentError:
+except ORTModuleInitException:
     # Not a ORTModule training package
     pass

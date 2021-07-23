@@ -36,9 +36,9 @@ def _check_same_device(device, argument_str, *args):
         if arg is not None and isinstance(arg, torch.Tensor):
             arg_device = torch.device(arg.device)
             if arg_device != device:
-                _FallbackManager.raise_exception(ORTModuleDeviceException,
-                                                 RuntimeError(
-                                                       f"{argument_str} found on device {arg_device}, but expected it to be on module device {device}."))
+                raise _FallbackManager.wrap_exception(ORTModuleDeviceException,
+                                                      RuntimeError(
+                                                            f"{argument_str} found on device {arg_device}, but expected it to be on module device {device}."))
 
 
 def get_device_index(device):
@@ -63,7 +63,7 @@ def get_device_str(device):
         else:
             device = device.type + ':' + str(device.index)
     else:
-        _FallbackManager.raise_exception(ORTModuleDeviceException, RuntimeError('Unsupported device type'))
+        raise _FallbackManager.wrap_exception(ORTModuleDeviceException, RuntimeError('Unsupported device type'))
     return device
 
 
@@ -81,8 +81,8 @@ def get_device_from_module(module):
         device = next(module.parameters()).device
         for param in module.parameters():
             if param.device != device:
-                _FallbackManager.raise_exception(ORTModuleDeviceException,
-                                                 RuntimeError('ORTModule supports a single device per model'))
+                raise _FallbackManager.wrap_exception(ORTModuleDeviceException,
+                                                      RuntimeError('ORTModule supports a single device per model'))
     except StopIteration:
         # Model doesn't have a device set to any of the model parameters
         pass

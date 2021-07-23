@@ -11,6 +11,8 @@ from .orttrainer_options import ORTTrainerOptions
 from .orttrainer import ORTTrainer, TrainStepInfo
 from . import amp, checkpoint, optim, model_desc_validation
 
+from onnxruntime.training.ortmodule._fallback import ORTModuleInitException
+
 try:
     from .ortmodule import ORTModule
 except ImportError:

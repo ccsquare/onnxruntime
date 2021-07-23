@@ -164,8 +164,8 @@ class GraphExecutionManager(GraphExecutionInterface):
         """Raises a ORTModuleTorchModelException if the module is not a valid"""
 
         if not isinstance(module, torch.nn.Module):
-            _FallbackManager.raise_exception(ORTModuleTorchModelException,
-                                             TypeError(f"ORTModule only supports torch.nn.Module as input. {type(module)} is not supported."))
+            raise _FallbackManager.wrap_exception(ORTModuleTorchModelException,
+                                                  TypeError(f"ORTModule only supports torch.nn.Module as input. {type(module)} is not supported."))
 
     @staticmethod
     def execution_session_run_forward(execution_session, onnx_model, device, *inputs):
@@ -312,8 +312,8 @@ class GraphExecutionManager(GraphExecutionInterface):
                                   export_params=False,
                                   keep_initializers_as_inputs=True)
         except RuntimeError as e:
-            _FallbackManager.raise_exception(ORTModuleONNXModelException,
-                                             RuntimeError(f'There was an error while exporting the PyTorch model to ONNX: {e}'))
+            raise _FallbackManager.wrap_exception(ORTModuleONNXModelException,
+                                                  RuntimeError(f'There was an error while exporting the PyTorch model to ONNX: {e}'))
         exported_model = onnx.load_model_from_string(f.getvalue())
         if self._save_onnx:
             onnx.save(exported_model, self._save_onnx_prefix + '_torch_exporter.onnx')
@@ -333,8 +333,8 @@ class GraphExecutionManager(GraphExecutionInterface):
         if not self._device or self._device != device:
             self._device = device
             if not self._device:
-                _FallbackManager.raise_exception(ORTModuleDeviceException,
-                                                 RuntimeError('A device must be specified in the model or inputs!'))
+                raise _FallbackManager.wrap_exception(ORTModuleDeviceException,
+                                                      RuntimeError('A device must be specified in the model or inputs!'))
 
     def _get_graph_transformer_config(self):
         graph_transformer_config = C.TrainingGraphTransformerConfiguration()

@@ -9,6 +9,7 @@ from onnxruntime.training import orttrainer
 try:
     from onnxruntime.training.ortmodule import ORTModule
     from onnxruntime.training.ortmodule._graph_execution_manager_factory import GraphExecutionManagerFactory
+    from onnxruntime.training.ortmodule._fallback import ORTModuleInitException
 except ImportError:
     # Some pipelines do not contain ORTModule
     pass

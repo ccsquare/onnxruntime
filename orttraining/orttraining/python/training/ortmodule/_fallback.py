@@ -189,7 +189,12 @@ class _FallbackManager(object):
         return model(*inputs, **kwargs)
 
     @staticmethod
-    def raise_exception(new_exception: ORTModuleFallbackException, raised_exception: Exception) -> ORTModuleFallbackException:
-        '''Raises `new_exception` and set `raised_exception` as its cause'''
+    def wrap_exception(new_exception: ORTModuleFallbackException, raised_exception: Exception) -> ORTModuleFallbackException:
+        '''Wraps `raised_exception` exception as cause for the returned `new_exception` exception'''
 
-        raise new_exception(raised_exception) from raised_exception
+        exception = None
+        try:
+            raise new_exception(raised_exception) from raised_exception
+        except Exception as e:
+            exception = e
+        return exception

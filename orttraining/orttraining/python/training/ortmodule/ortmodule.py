@@ -77,15 +77,15 @@ class ORTModule(torch.nn.Module):
         which does not need model replication and is also recommended by torch to use instead.
         """
 
-        _FallbackManager.raise_exception(ORTModuleTorchModelException,
-                                         NotImplementedError("ORTModule is not compatible with torch.nn.DataParallel. "
-                                                             "Please use torch.nn.parallel.DistributedDataParallel instead."))
+        raise _FallbackManager.wrap_exception(ORTModuleTorchModelException,
+                                              NotImplementedError("ORTModule is not compatible with torch.nn.DataParallel. "
+                                                                  "Please use torch.nn.parallel.DistributedDataParallel instead."))
 
     def add_module(self, name: str, module: Optional['Module']) -> None:
         """Raises a ORTModuleTorchModelException exception since ORTModule does not support adding modules to it"""
 
-        _FallbackManager.raise_exception(ORTModuleTorchModelException,
-                                         NotImplementedError("ORTModule does not support adding modules to it."))
+        raise _FallbackManager.wrap_exception(ORTModuleTorchModelException,
+                                              NotImplementedError("ORTModule does not support adding modules to it."))
 
     @property
     def module(self):

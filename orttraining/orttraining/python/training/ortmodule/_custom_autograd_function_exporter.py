@@ -84,15 +84,15 @@ def _export(g, n, *args, **kwargs):
                             len(input_float_tuples))
                         input_float_tuples.extend(list(arg))
                     else:
-                        _FallbackManager.raise_exception(ORTModuleONNXModelException,
-                                                         Exception(f'Unknown argument type found: {type(arg)}.'))
+                        raise _FallbackManager.wrap_exception(ORTModuleONNXModelException,
+                                                              Exception(f'Unknown argument type found: {type(arg)}.'))
                 else:
                     # All other inputs are accessed via "pointers".
                     input_pointer_scalar_positions.append(i)
                     input_pointer_scalars.append(id(arg))
             else:
-                _FallbackManager.raise_exception(ORTModuleONNXModelException,
-                                                 Exception(f'Unknown calling convention found: {i}. Only \'d\' and \'c\' are supported'))
+                raise _FallbackManager.wrap_exception(ORTModuleONNXModelException,
+                                                      Exception(f'Unknown calling convention found: {i}. Only \'d\' and \'c\' are supported'))
 
         output_tensor_types = []
         output_tensor_ranks = []
@@ -146,7 +146,7 @@ def _export(g, n, *args, **kwargs):
     except Exception as e:
         sys.stdout.flush()
         sys.stderr.flush()
-        _FallbackManager.raise_exception(ORTModuleONNXModelException, e)
+        raise _FallbackManager.wrap_exception(ORTModuleONNXModelException, e)
 
 
 def _post_process_after_export(exported_model, enable_custom_autograd_function):
@@ -160,11 +160,11 @@ def _post_process_after_export(exported_model, enable_custom_autograd_function):
             break
 
     if is_fallback_needed:
-        _FallbackManager.raise_exception(ORTModuleTorchModelException,
-                                         RuntimeError(
-                                             'Detected autograd functions usage in current model, the run will fail \
-                                              without enabling \'_enable_custom_autograd_function\'. Please enable it with: \
-                                              \'module._execution_manager(is_training_mode)._enable_custom_autograd_function = True\''))
+        raise _FallbackManager.wrap_exception(ORTModuleTorchModelException,
+                                              RuntimeError(
+                                                  'Detected autograd functions usage in current model, the run will fail \
+                                                   without enabling \'_enable_custom_autograd_function\'. Please enable it with: \
+                                                   \'module._execution_manager(is_training_mode)._enable_custom_autograd_function = True\''))
 
     return exported_model
 

@@ -65,16 +65,16 @@ def validate_build_package_info():
         has_ortmodule = True
     except ImportError:
         has_ortmodule = False
-    except EnvironmentError:
-        # ORTModule is present but not ready to run yet
-        has_ortmodule = True
-        pass
     except Exception as e:
+        has_ortmodule = True
+        from onnxruntime.training.ortmodule._fallback import ORTModuleInitException
+        if isinstance(e, ORTModuleInitException):
+            # ORTModule is present but not ready to run yet
+            pass
         # this may happen if Cuda is not installed, we want to raise it after
         # for any exception other than not having ortmodule, we want to continue
         # device version validation and raise the exception after.
         import_ortmodule_exception = e
-        has_ortmodule = True
 
     package_name = ''
     version = ''

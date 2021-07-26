@@ -11,13 +11,15 @@ from .orttrainer_options import ORTTrainerOptions
 from .orttrainer import ORTTrainer, TrainStepInfo
 from . import amp, checkpoint, optim, model_desc_validation
 
-from onnxruntime.training.ortmodule._fallback import ORTModuleInitException
 
 try:
     from .ortmodule import ORTModule
 except ImportError:
     # Not a ORTModule training package
     pass
-except ORTModuleInitException:
-    # Not a ORTModule training package
-    pass
+except Exception as e:
+    # ORTModule is present...
+    from onnxruntime.training.ortmodule._fallback import ORTModuleInitException
+    if isinstance(e, ORTModuleInitException):
+        # ...but not ready to run
+        pass

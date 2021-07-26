@@ -26,6 +26,15 @@ struct OrtMemoryInfo {
         device(device_) {
   }
 
+  constexpr OrtMemoryInfo(const std::string_view& name_, OrtAllocatorType type_, OrtDevice device_ = OrtDevice(), int id_ = 0,
+                          OrtMemType mem_type_ = OrtMemTypeDefault)
+      : name(name_.data()),
+        id(id_),
+        mem_type(mem_type_),
+        alloc_type(type_),
+        device(device_) {
+  }
+
   // To make OrtMemoryInfo become a valid key in std map
   bool operator<(const OrtMemoryInfo& other) const {
     if (alloc_type != other.alloc_type)

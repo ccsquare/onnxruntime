@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #pragma once
+#include <string_view>
 
 #include "core/common/common.h"
 #include "core/framework/fence.h"
@@ -34,11 +35,11 @@ struct OrtArenaCfg {
 };
 
 namespace onnxruntime {
-constexpr const char* CPU = "Cpu";
-constexpr const char* CUDA = "Cuda";
-constexpr const char* CUDA_PINNED = "CudaPinned";
-constexpr const char* MIGRAPHX = "MIGraphX";
-constexpr const char* MIGRAPHX_PINNED = "MIGraphXPinned";
+constexpr std::string_view CPU = "Cpu";
+constexpr std::string_view CUDA = "Cuda";
+constexpr std::string_view CUDA_PINNED = "CudaPinned";
+constexpr std::string_view MIGRAPHX = "MIGraphX";
+constexpr std::string_view MIGRAPHX_PINNED = "MIGraphXPinned";
 
 constexpr size_t kAllocAlignment = 256;
 

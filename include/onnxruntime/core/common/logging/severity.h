@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #pragma once
-
+#include <string_view>
 namespace onnxruntime {
 namespace logging {
 // mild violation of naming convention. the 'k' lets us use token concatenation in the macro
@@ -16,7 +16,7 @@ enum class Severity {
   kFATAL = 4
 };
 
-constexpr const char* SEVERITY_PREFIX = "VIWEF";
+static constexpr std::string_view SEVERITY_PREFIX = "VIWEF";
 
 }  // namespace logging
 }  // namespace onnxruntime

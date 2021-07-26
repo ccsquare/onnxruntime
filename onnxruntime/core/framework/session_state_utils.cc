@@ -87,7 +87,7 @@ static common::Status DeserializeTensorProto(const Env& env, const std::basic_st
     }
   }
 
-  if (strcmp(p_tensor->Location().name, CPU) == 0) {
+  if (p_tensor->Location().name == CPU) {
     // deserialize directly to CPU tensor
     ORT_RETURN_IF_ERROR(utils::TensorProtoToTensor(env, proto_path.c_str(), tensor_proto, *p_tensor));
   } else {  // non-cpu tensor

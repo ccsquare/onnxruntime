@@ -91,9 +91,9 @@ void addOrtValueMethods(pybind11::module& m) {
 
         std::unique_ptr<Tensor> tensor;
         // The tensor's memory is allocated on the CPU
-        if (strcmp(GetDeviceName(device), CPU) == 0) {
+        if (GetDeviceName(device) == CPU) {
           tensor = std::make_unique<Tensor>(NumpyTypeToOnnxRuntimeType(type_num), shape, GetAllocator());
-        } else if (strcmp(GetDeviceName(device), CUDA) == 0) {
+        } else if (GetDeviceName(device) == CUDA) {
       // The tensor's memory is allocated on CUDA
 #ifdef USE_CUDA
           if (!IsCudaDeviceIdValid(logging::LoggingManager::DefaultLogger(), device.Id())) {

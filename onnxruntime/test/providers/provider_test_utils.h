@@ -778,7 +778,7 @@ class OpTester {
       ORT_ENFORCE(shape.Size() == values_count, values_count, " input values doesn't match tensor size of ",
                   shape.Size());
 
-      auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU);
+      auto allocator = test::AllocatorManager::Instance().GetAllocator(std::string(CPU));
       auto p_tensor = std::make_unique<Tensor>(DataTypeImpl::GetType<T>(), shape, allocator);
 
       auto* data_ptr = p_tensor->template MutableData<T>();
@@ -830,7 +830,7 @@ class OpTester {
       ORT_ENFORCE(shape.Size() == values_count, values_count,
                   " input values doesn't match tensor size of ", shape.Size());
 
-      auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU);
+      auto allocator = test::AllocatorManager::Instance().GetAllocator(std::string(CPU));
       auto& tensor = tensors[i];
 
       tensor = Tensor(elem_type,

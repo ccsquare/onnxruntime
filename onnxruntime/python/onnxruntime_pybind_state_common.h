@@ -410,7 +410,7 @@ void addOpKernelSubmodule(pybind11::module& m);
 void addOpSchemaSubmodule(pybind11::module& m);
 #endif
 
-const char* GetDeviceName(const OrtDevice& device);
+std::string_view GetDeviceName(const OrtDevice& device);
 
 bool IsCudaDeviceIdValid(const onnxruntime::logging::Logger& logger, int id);
 

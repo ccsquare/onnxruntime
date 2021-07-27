@@ -439,7 +439,7 @@ TEST(ExecutionFrameTestInit, InitializerAsOutput) {
     ASSERT_STATUS_OK(session.Load(ORT_TSTR("testdata/initializer_as_output.onnx")));
     ASSERT_STATUS_OK(session.Initialize());
 
-    auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU);
+    auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU.data());
     auto p_tensor = std::make_unique<Tensor>(DataTypeImpl::GetType<float>(), TensorShape({5, 5}), allocator);
     const void* orig_buffer = p_tensor->DataRaw();
 
@@ -491,7 +491,7 @@ TEST(ExecutionFrameTestInit, SparseInitializerAsOutput) {
     ASSERT_STATUS_OK(session.Load(ORT_TSTR("testdata/sparse_initializer_as_output.onnx")));
     ASSERT_STATUS_OK(session.Initialize());
 
-    auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU);
+    auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU.data());
     auto p_tensor = std::make_unique<SparseTensor>();
 
     std::vector<OrtValue> results;

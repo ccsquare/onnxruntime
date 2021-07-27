@@ -29,7 +29,7 @@ void CPUTensorTest(std::vector<int64_t> dims, const int offset_elements = 0) {
   EXPECT_EQ(shape.GetDims(), tensor_shape.GetDims());
   EXPECT_EQ(t.DataType(), DataTypeImpl::GetType<T>());
   auto& location = t.Location();
-  EXPECT_STREQ(location.name, CPU);
+  EXPECT_EQ(location.name, CPU);
   EXPECT_EQ(location.id, 0);
 
   const T* t_data = t.Data<T>();
@@ -47,7 +47,7 @@ void CPUTensorTest(std::vector<int64_t> dims, const int offset_elements = 0) {
     EXPECT_EQ(shape.GetDims(), tensor_shape.GetDims());
     EXPECT_EQ(new_t.DataType(), DataTypeImpl::GetType<T>());
     auto& new_location = new_t.Location();
-    ASSERT_STREQ(new_location.name, CPU);
+    ASSERT_EQ(new_location.name, CPU);
     EXPECT_EQ(new_location.id, 0);
   }
 }
@@ -135,7 +135,7 @@ TEST(TensorTest, EmptyTensorTest) {
   EXPECT_TRUE(!data);
 
   auto& location = t.Location();
-  ASSERT_STREQ(location.name, CPU);
+  ASSERT_EQ(location.name, CPU);
   EXPECT_EQ(location.id, 0);
 
   // arena is disabled for CPUExecutionProvider on x86 and JEMalloc
@@ -163,7 +163,7 @@ TEST(TensorTest, StringTensorTest) {
     EXPECT_EQ(*reinterpret_cast<const std::vector<int64_t>*>(&shape), *reinterpret_cast<const std::vector<int64_t>*>(&tensor_shape));
     EXPECT_EQ(t.DataType(), DataTypeImpl::GetType<std::string>());
     auto& location = t.Location();
-    ASSERT_STREQ(location.name, CPU);
+    ASSERT_EQ(location.name, CPU);
     EXPECT_EQ(location.id, 0);
 
     std::string* new_data = t.template MutableData<std::string>();

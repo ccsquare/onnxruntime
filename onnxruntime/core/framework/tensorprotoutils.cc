@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <algorithm>
+#include <filesystem>
 #include <limits>
 #include <gsl/gsl>
 
@@ -555,10 +556,10 @@ static void DeleteCharArray(void* param) noexcept {
 
 static Status GetFileContent(
     const Env& env, const ORTCHAR_T* file_path, FileOffsetType offset, size_t length,
-    void*& raw_buffer, OrtCallback& deleter) {
+    void*& raw_buffer, OrtCallback& deleter)  {
   // query length if it is 0
   if (length == 0) {
-    ORT_RETURN_IF_ERROR(env.GetFileLength(file_path, length));
+    length = std::filesystem::file_size(file_path);    
   }
 
   // first, try to map into memory

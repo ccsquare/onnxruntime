@@ -5,6 +5,7 @@
 #include "core/session/inference_session.h"
 
 #include <memory>
+#include <filesystem>
 #include <sstream>
 #include <unordered_set>
 #include <list>
@@ -962,7 +963,7 @@ static Status LoadOrtModelBytes(const std::basic_string<T>& model_uri,
                                 std::vector<uint8_t>& bytes) {
   size_t num_bytes = 0;
   model_location = ToWideString(model_uri);
-  ORT_RETURN_IF_ERROR(Env::Default().GetFileLength(model_location.c_str(), num_bytes));
+  num_bytes = std::filesystem::file_size(model_location);
 
   bytes.resize(num_bytes);
 

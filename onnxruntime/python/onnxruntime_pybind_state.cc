@@ -185,7 +185,7 @@ void GetPyObjFromTensor(const Tensor& rtensor, py::object& obj,
   }
 }
 
-const char* GetDeviceName(const OrtDevice& device) {
+std::string_view GetDeviceName(const OrtDevice& device) {
   switch (device.Type()) {
     case OrtDevice::CPU:
       return CPU;
@@ -1012,13 +1012,13 @@ void addObjectMethods(py::module& m, Environment& env) {
 
   py::class_<OrtMemoryInfo> ort_memory_info_binding(m, "OrtMemoryInfo");
   ort_memory_info_binding.def(py::init([](const char* name, OrtAllocatorType type, int id, OrtMemType mem_type) {
-    if (strcmp(name, onnxruntime::CPU) == 0) {
+    if (onnxruntime::CPU.compare(name) == 0) {
       return std::make_unique<OrtMemoryInfo>(onnxruntime::CPU, type, OrtDevice(), id, mem_type);
-    } else if (strcmp(name, onnxruntime::CUDA) == 0) {
+    } else if (onnxruntime::CUDA.compare(name) == 0) {
       return std::make_unique<OrtMemoryInfo>(
           onnxruntime::CUDA, type, OrtDevice(OrtDevice::GPU, OrtDevice::MemType::DEFAULT, static_cast<OrtDevice::DeviceId>(id)), id,
           mem_type);
-    } else if (strcmp(name, onnxruntime::CUDA_PINNED) == 0) {
+    } else if (onnxruntime::CUDA_PINNED.compare(name) == 0) {
       return std::make_unique<OrtMemoryInfo>(
           onnxruntime::CUDA_PINNED, type, OrtDevice(OrtDevice::CPU, OrtDevice::MemType::CUDA_PINNED, static_cast<OrtDevice::DeviceId>(id)),
           id, mem_type);

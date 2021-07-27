@@ -12,7 +12,7 @@ namespace test {
 TEST(AllocatorTest, CPUAllocatorTest) {
   auto cpu_arena = TestCPUExecutionProvider()->GetAllocator(0, OrtMemTypeDefault);
 
-  ASSERT_STREQ(cpu_arena->Info().name, CPU);
+  ASSERT_EQ(cpu_arena->Info().name, CPU);
   EXPECT_EQ(cpu_arena->Info().id, 0);
 
   // arena is disabled for CPUExecutionProvider on x86 and JEMalloc

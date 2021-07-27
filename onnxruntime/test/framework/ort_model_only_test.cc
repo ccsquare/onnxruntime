@@ -3,7 +3,7 @@
 
 // if we can't load an ORT format model we can't really test anything
 #if defined(ENABLE_ORT_FORMAT_LOAD)
-
+#include <filesystem>
 #include "core/framework/data_types.h"
 #include "core/framework/tensorprotoutils.h"
 #include "core/graph/onnx_protobuf.h"
@@ -50,7 +50,7 @@ static void RunOrtModel(const OrtModelTestInfo& test_info) {
   if (test_info.run_use_buffer) {
     // Load the file into a buffer and use the buffer to create inference session
     size_t num_bytes = 0;
-    ASSERT_STATUS_OK(Env::Default().GetFileLength(test_info.model_filename.c_str(), num_bytes));
+	num_bytes = std::filesystem::file_size(test_info.model_filename);    
     model_data.resize(num_bytes);
     std::ifstream bytes_stream(test_info.model_filename, std::ifstream::in | std::ifstream::binary);
     bytes_stream.read(model_data.data(), num_bytes);

@@ -550,7 +550,7 @@ void OpTester::AddShapeToTensorData(NodeArg& node_arg, const std::vector<int64_t
 
 static std::unique_ptr<SparseTensor> MakeSparseTensor(MLDataType data_type, const std::vector<int64_t>& dims) {
   TensorShape shape{dims};
-  auto allocator = test::AllocatorManager::Instance().GetAllocator(CPU);
+  auto allocator = test::AllocatorManager::Instance().GetAllocator(std::string(CPU));
   auto p_tensor = std::make_unique<SparseTensor>(data_type, shape, allocator);
   return p_tensor;
 }
